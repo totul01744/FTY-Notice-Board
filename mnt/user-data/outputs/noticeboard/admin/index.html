@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>অ্যাডমিন প্যানেল – নোটিশ বোর্ড</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Tiro+Bangla&display=swap" rel="stylesheet" />
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    // ✅ এখানে আপনার Firebase config বসান
+    const firebaseConfig = {
+      apiKey: "AIzaSyAnEXrxmLAmsKh6ktCXW7FOo_-zOdY8TdE",
+      authDomain: "fyp-king-notice.firebaseapp.com",
+      projectId: "fyp-king-notice",
+      storageBucket: "fyp-king-notice.firebasestorage.app",
+      messagingSenderId: "964120344364",
+      appId: "1:964120344364:web:2189eb49ade683b60f1e89"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const auth = getAuth(app);
+
+    // ─── Auth ───────────────────────────────────────────────────
+    const loginSection = document.getElementById("loginSection");
+    const adminSection = document.getElementById("adminSection");
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loginSection.style.display = "none";
+        adminSection.style.display = "block";
+        document.getElementById("adminEmail").textContent = user.email;
+        loadNotices();
+      } else {
+        loginSection.style.display = "flex";
+        adminSection.style.display = "none";
+      }
+    });
+
+    window.doLogin = async function () {
+      const email = document.getElementById("loginEmail").value;
+      const pass = document.getElementById("loginPass").value;
+      const errEl = document.getElementById("loginError");
+      errEl.textContent = "";
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+      } catch (e) {
+        errEl.textContent = "ভুল ইমেইল বা পাসওয়ার্ড।";
+      }
+    };
+
+    window.doLogout = async function () {
+      await signOut(auth);
+    };
+
+    // ─── Type toggle ─────────────────────────────────────────────
+    window.selectType = function (type) {
+      document.querySelectorAll(".type-tab").forEach(t => t.classList.remove("active"));
+      document.querySelector(`[data-type="${type}"]`).classList.add("active");
+      document.getElementById("fileSection").style.display = type === "file" ? "block" : "none";
+      document.getElementById("linkSection").style.display = type === "link" ? "block" : "none";
+      document.getElementById("selectedType").value = type;
+    };
+
+    // ─── File upload preview ─────────────────────────────────────
+    const fileInput = document.getElementById("fileInput");
+    fileInput?.addEventListener("change", () => {
+      const f = fileInput.files[0];
+      if (f) document.getElementById("fileName").textContent = f.name;
+    });
+
+    // ─── Post notice ─────────────────────────────────────────────
+    window.postNotice = async function () {
+      const type = document.getElementById("selectedType").value;
+      const title = document.getElementById("noticeTitle").value.trim();
+      const body = document.getElementById("noticeBody").value.trim();
+      const pinned = document.getElementById("pinnedCheck").checked;
+      const statusEl = document.getElementById("postStatus");
+      const btn = document.getElementById("postBtn");
+
+      if (!title) { statusEl.textContent = "শিরোনাম দিন।"; statusEl.className = "status-msg error"; return; }
+
+      btn.disabled = true;
+      statusEl.textContent = "পোস্ট হচ্ছে...";
+      statusEl.className = "status-msg";
+
+      try {
+        let extra = {};
+
+        if (type === "file") {
+          const file = fileInput.files[0];
+          if (!file) { statusEl.textContent = "ফাইল সিলেক্ট করুন।"; statusEl.className = "status-msg error"; btn.disabled = false; return; }
+          const storageRef = ref(storage, `notices/${Date.now()}_${file.name}`);
+          const task = uploadBytesResumable(storageRef, file);
+          await new Promise((res, rej) => {
+            task.on("state_changed",
+              snap => {
+                const pct = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
+                statusEl.textContent = `আপলোড হচ্ছে... ${pct}%`;
+              },
+              rej, res
+            );
+          });
+          extra.fileUrl = await getDownloadURL(storageRef);
+          extra.fileName = file.name;
+          extra.fileRef = storageRef.fullPath;
+        }
+
+        if (type === "link") {
+          const url = document.getElementById("linkUrl").value.trim();
+          if (!url) { statusEl.textContent = "লিঙ্ক দিন।"; statusEl.className = "status-msg error"; btn.disabled = false; return; }
+          extra.linkUrl = url;
+        }
+
+        await addDoc(collection(db, "notices"), {
+          type, title, body, pinned,
+          ...extra,
+          createdAt: serverTimestamp()
+        });
+
+        statusEl.textContent = "✅ পোস্ট হয়েছে!";
+        statusEl.className = "status-msg success";
+        document.getElementById("noticeTitle").value = "";
+        document.getElementById("noticeBody").value = "";
+        document.getElementById("linkUrl").value = "";
+        document.getElementById("pinnedCheck").checked = false;
+        fileInput.value = "";
+        document.getElementById("fileName").textContent = "";
+      } catch (e) {
+        statusEl.textContent = "ত্রুটি: " + e.message;
+        statusEl.className = "status-msg error";
+      }
+      btn.disabled = false;
+    };
+
+    // ─── Load & delete notices ───────────────────────────────────
+    function loadNotices() {
+      const list = document.getElementById("noticeList");
+      const q = query(collection(db, "notices"), orderBy("createdAt", "desc"));
+      onSnapshot(q, (snap) => {
+        list.innerHTML = "";
+        snap.forEach(docSnap => {
+          const d = docSnap.data();
+          const item = document.createElement("div");
+          item.className = "admin-notice-item";
+          const date = d.createdAt?.toDate?.() ?? new Date();
+          const dateStr = date.toLocaleString("bn-BD");
+          item.innerHTML = `
+            <div class="ani-info">
+              <span class="ani-badge type-${d.type}">${getTypeName(d.type)}</span>
+              <strong>${escHtml(d.title)}</strong>
+              <small>${dateStr}</small>
+            </div>
+            <div class="ani-actions">
+              <button class="btn-pin ${d.pinned ? 'pinned' : ''}" onclick="togglePin('${docSnap.id}', ${!d.pinned})" title="${d.pinned ? 'আনপিন' : 'পিন'}">📌</button>
+              <button class="btn-del" onclick="deleteNotice('${docSnap.id}', '${d.fileRef || ''}')">🗑️ মুছুন</button>
+            </div>
+          `;
+          list.appendChild(item);
+        });
+        if (snap.empty) list.innerHTML = `<p class="empty-msg">কোনো নোটিশ নেই।</p>`;
+      });
+    }
+
+    window.deleteNotice = async function (id, fileRef) {
+      if (!confirm("এই নোটিশ মুছে ফেলবেন?")) return;
+      await deleteDoc(doc(db, "notices", id));
+      if (fileRef) {
+        try { await deleteObject(ref(storage, fileRef)); } catch {}
+      }
+    };
+
+    window.togglePin = async function (id, pinned) {
+      await updateDoc(doc(db, "notices", id), { pinned });
+    };
+
+    function getTypeName(t) {
+      return { text: "নোটিশ", file: "ফাইল", link: "লিঙ্ক", urgent: "জরুরি", event: "ইভেন্ট" }[t] || t;
+    }
+    function escHtml(s = "") {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+</head>
+<body class="admin-body">
+
+  <!-- Login -->
+  <div id="loginSection" class="login-overlay">
+    <div class="login-box">
+      <div class="login-icon">🔐</div>
+      <h2>অ্যাডমিন লগইন</h2>
+      <p>নোটিশ বোর্ড পরিচালনা করতে লগইন করুন</p>
+      <input type="email" id="loginEmail" placeholder="ইমেইল" class="form-input" />
+      <input type="password" id="loginPass" placeholder="পাসওয়ার্ড" class="form-input" onkeydown="if(event.key==='Enter')doLogin()" />
+      <p id="loginError" class="status-msg error"></p>
+      <button class="btn-primary" onclick="doLogin()">লগইন করুন</button>
+    </div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div id="adminSection" style="display:none;">
+    <header class="admin-header">
+      <div class="header-content">
+        <div class="logo">
+          <div class="logo-icon">⚙️</div>
+          <div>
+            <h1 class="site-title">অ্যাডমিন প্যানেল</h1>
+            <p class="site-subtitle" id="adminEmail"></p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a href="../" class="btn-outline">🏠 বোর্ড দেখুন</a>
+          <button class="btn-outline" onclick="doLogout()">লগআউট</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="admin-main">
+      <!-- Post Form -->
+      <section class="admin-card">
+        <h2 class="section-title">📝 নতুন নোটিশ পোস্ট করুন</h2>
+
+        <div class="type-tabs">
+          <button class="type-tab active" data-type="text" onclick="selectType('text')">📌 নোটিশ</button>
+          <button class="type-tab" data-type="file" onclick="selectType('file')">📎 ফাইল</button>
+          <button class="type-tab" data-type="link" onclick="selectType('link')">🔗 লিঙ্ক</button>
+          <button class="type-tab" data-type="urgent" onclick="selectType('urgent')">🚨 জরুরি</button>
+          <button class="type-tab" data-type="event" onclick="selectType('event')">📅 ইভেন্ট</button>
+        </div>
+        <input type="hidden" id="selectedType" value="text" />
+
+        <div class="form-group">
+          <label class="form-label">শিরোনাম *</label>
+          <input type="text" id="noticeTitle" class="form-input" placeholder="নোটিশের শিরোনাম লিখুন" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">বিবরণ (ঐচ্ছিক)</label>
+          <textarea id="noticeBody" class="form-textarea" rows="4" placeholder="বিস্তারিত লিখুন..."></textarea>
+        </div>
+
+        <div id="fileSection" style="display:none;" class="form-group">
+          <label class="form-label">ফাইল আপলোড</label>
+          <label class="file-upload-label">
+            <input type="file" id="fileInput" />
+            <span>📂 ফাইল বেছে নিন</span>
+          </label>
+          <p id="fileName" class="file-name-display"></p>
+        </div>
+
+        <div id="linkSection" style="display:none;" class="form-group">
+          <label class="form-label">লিঙ্ক URL</label>
+          <input type="url" id="linkUrl" class="form-input" placeholder="https://example.com" />
+        </div>
+
+        <div class="form-check">
+          <input type="checkbox" id="pinnedCheck" />
+          <label for="pinnedCheck">📌 উপরে পিন করুন</label>
+        </div>
+
+        <p id="postStatus" class="status-msg"></p>
+        <button id="postBtn" class="btn-primary" onclick="postNotice()">পোস্ট করুন →</button>
+      </section>
+
+      <!-- Notice List -->
+      <section class="admin-card">
+        <h2 class="section-title">📋 সব নোটিশ</h2>
+        <div id="noticeList">
+          <p class="empty-msg">লোড হচ্ছে...</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

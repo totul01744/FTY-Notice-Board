@@ -1,799 +1,165 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>FYP King — Admin Panel</title>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+Da+2:wght@400;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --p:#FF2D55;--p2:#FF9500;--gold:#FFD700;
-  --bg:#05050E;--bg2:#0C0C1C;--bg3:#141425;
-  --card:#191930;--border:#222240;
-  --text:#F0F0FF;--muted:#60608A;
-  --green:#30D158;--blue:#0A84FF;
-  --fd:'Baloo Da 2',cursive;--fb:'Hind Siliguri',sans-serif;
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);color:var(--text);font-family:var(--fb);min-height:100vh;}
-.wrap{max-width:600px;margin:0 auto;padding:16px;}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>নোটিশ বোর্ড</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Tiro+Bangla&display=swap" rel="stylesheet" />
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-/* Header */
-.hdr{display:flex;align-items:center;gap:12px;padding:16px;background:var(--card);border-bottom:1px solid var(--border);margin-bottom:16px;border-radius:12px;}
-.hdr-title{font-family:var(--fd);font-size:20px;font-weight:800;flex:1;}
-.hdr-uid{font-size:10px;color:var(--muted);}
+    // ✅ এখানে আপনার Firebase config বসান
+    const firebaseConfig = {
+      apiKey: "AIzaSyAnEXrxmLAmsKh6ktCXW7FOo_-zOdY8TdE",
+      authDomain: "fyp-king-notice.firebaseapp.com",
+      projectId: "fyp-king-notice",
+      storageBucket: "fyp-king-notice.firebasestorage.app",
+      messagingSenderId: "964120344364",
+      appId: "1:964120344364:web:2189eb49ade683b60f1e89"
+    };
 
-/* Login */
-#loginScreen{text-align:center;padding:40px 20px;}
-.login-icon{font-size:60px;margin-bottom:12px;}
-.login-title{font-family:var(--fd);font-size:24px;font-weight:800;margin-bottom:6px;}
-.login-sub{font-size:13px;color:var(--muted);margin-bottom:24px;}
-.fi{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;font-family:var(--fb);outline:none;margin-bottom:10px;}
-.fi:focus{border-color:var(--p);}
-.btn-p{width:100%;background:linear-gradient(135deg,var(--p),var(--p2));border:none;border-radius:10px;padding:13px;color:#fff;font-size:14px;font-weight:700;font-family:var(--fb);cursor:pointer;}
-.btn-s{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 16px;color:var(--text);font-size:13px;font-weight:600;font-family:var(--fb);cursor:pointer;}
-.btn-gold{background:linear-gradient(135deg,#B8860B,var(--gold));border:none;border-radius:10px;padding:11px;color:#000;font-size:13px;font-weight:700;font-family:var(--fb);cursor:pointer;width:100%;}
-.btn-red{background:linear-gradient(135deg,#c0392b,#e74c3c);border:none;border-radius:10px;padding:10px;color:#fff;font-size:13px;font-weight:700;font-family:var(--fb);cursor:pointer;width:100%;}
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-/* Sections */
-.sec{background:var(--card);border-radius:12px;border:1px solid var(--border);margin-bottom:12px;overflow:hidden;}
-.sec-hdr{padding:14px 16px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;user-select:none;}
-.sec-hdr:hover{background:rgba(255,255,255,.03);}
-.sec-body{padding:14px 16px;border-top:1px solid var(--border);display:none;}
-.sec-body.open{display:block;}
-.fg{margin-bottom:10px;}
-.fl{display:block;font-size:11px;color:var(--muted);font-weight:700;margin-bottom:4px;text-transform:uppercase;}
-.fi2{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;font-family:var(--fb);outline:none;}
-.fi2:focus{border-color:var(--p);}
-textarea.fi2{resize:vertical;min-height:60px;}
-select.fi2{cursor:pointer;}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    const board = document.getElementById("noticeBoard");
+    const loader = document.getElementById("loader");
+    const emptyState = document.getElementById("emptyState");
 
-/* User cards */
-.uc{background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid var(--border);}
-.uc-top{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-.uc-av{width:38px;height:38px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;overflow:hidden;flex-shrink:0;}
-.uc-av img{width:100%;height:100%;object-fit:cover;}
-.uc-name{font-weight:700;font-size:13px;}
-.uc-det{font-size:11px;color:var(--muted);}
-.uc-chips{display:flex;flex-wrap:wrap;gap:5px;}
-.uch{background:var(--bg2);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:600;}
-.dbtn{background:rgba(255,45,85,.15);border:none;border-radius:6px;padding:5px 8px;color:var(--p);cursor:pointer;font-size:13px;}
-.ebtn{background:rgba(10,132,255,.15);border:none;border-radius:6px;padding:5px 8px;color:var(--blue);cursor:pointer;font-size:13px;}
+    const q = query(collection(db, "notices"), orderBy("createdAt", "desc"));
 
-/* Challenge list */
-.cli{background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
-.cli-info{flex:1;min-width:0;}
-.cli-day{font-size:11px;color:var(--muted);}
-.cli-t{font-size:13px;font-weight:600;}
-.cli-acts{display:flex;gap:6px;}
-.tier-b{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;text-transform:uppercase;display:inline-block;margin-left:4px;}
-.tf{background:rgba(48,209,88,.15);color:var(--green);}
-.tp1{background:rgba(255,149,0,.15);color:var(--p2);}
-.tp2{background:rgba(255,45,85,.15);color:var(--p);}
+    onSnapshot(q, (snapshot) => {
+      loader.style.display = "none";
+      board.innerHTML = "";
 
-/* Toast */
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;pointer-events:none;}
-.tst{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:10px 18px;font-size:13px;font-weight:600;margin-top:8px;white-space:nowrap;opacity:0;transition:opacity .3s;}
-.tst.ok{border-color:var(--green);color:var(--green);}
-.tst.er{border-color:var(--p);color:var(--p);}
-.tst.show{opacity:1;}
+      if (snapshot.empty) {
+        emptyState.style.display = "flex";
+        return;
+      }
 
-/* Loader */
-#loader{position:fixed;inset:0;background:rgba(5,5,14,.85);z-index:9998;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
-#loader.on{display:flex;}
-.spin{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
+      emptyState.style.display = "none";
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        board.appendChild(createCard(data));
+      });
+    });
 
-/* Stats bar */
-.stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
-.stat-box{background:var(--card);border-radius:10px;padding:12px;text-align:center;border:1px solid var(--border);}
-.stat-val{font-family:var(--fd);font-size:22px;font-weight:800;color:var(--p);}
-.stat-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+    function createCard(data) {
+      const card = document.createElement("div");
+      card.className = `notice-card type-${data.type}`;
 
-/* Earning Links */
-.el-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
-.el-lbl{font-size:12px;color:var(--muted);font-weight:700;min-width:120px;}
-</style>
+      const date = data.createdAt?.toDate?.() ?? new Date();
+      const dateStr = date.toLocaleDateString("bn-BD", { day: "numeric", month: "long", year: "numeric" });
+      const timeStr = date.toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" });
+
+      let icon = "📌";
+      if (data.type === "file") icon = "📎";
+      if (data.type === "link") icon = "🔗";
+      if (data.type === "urgent") icon = "🚨";
+      if (data.type === "event") icon = "📅";
+
+      let actionHTML = "";
+      if (data.type === "file" && data.fileUrl) {
+        actionHTML = `<a href="${data.fileUrl}" target="_blank" class="card-action" download>
+          <span>ডাউনলোড করুন</span> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>`;
+      } else if (data.type === "link" && data.linkUrl) {
+        actionHTML = `<a href="${data.linkUrl}" target="_blank" class="card-action">
+          <span>লিঙ্ক খুলুন</span> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>`;
+      }
+
+      card.innerHTML = `
+        <div class="card-header">
+          <span class="card-icon">${icon}</span>
+          <span class="card-badge type-${data.type}">${getTypeName(data.type)}</span>
+          ${data.pinned ? '<span class="card-pinned">📌 পিন করা</span>' : ""}
+        </div>
+        <h3 class="card-title">${escapeHtml(data.title)}</h3>
+        ${data.body ? `<p class="card-body">${escapeHtml(data.body).replace(/\n/g, "<br>")}</p>` : ""}
+        ${data.type === "link" && data.linkUrl ? `<div class="card-link-preview">${escapeHtml(data.linkUrl)}</div>` : ""}
+        ${data.type === "file" && data.fileName ? `<div class="card-file-info"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ${escapeHtml(data.fileName)}</div>` : ""}
+        <div class="card-footer">
+          <span class="card-date">${dateStr} · ${timeStr}</span>
+          ${actionHTML}
+        </div>
+      `;
+
+      return card;
+    }
+
+    function getTypeName(type) {
+      const names = { text: "নোটিশ", file: "ফাইল", link: "লিঙ্ক", urgent: "জরুরি", event: "ইভেন্ট" };
+      return names[type] || "নোটিশ";
+    }
+
+    function escapeHtml(str = "") {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
 </head>
 <body>
-
-<div id="toast"></div>
-<div id="loader"><div class="spin"></div><div style="font-size:13px;color:var(--muted)" id="loaderTxt">লোড হচ্ছে...</div></div>
-
-<!-- LOGIN -->
-<div id="loginScreen">
-  <div class="login-icon">⚙️</div>
-  <div class="login-title">FYP King Admin</div>
-  <div class="login-sub">শুধু Admin দেখতে পারবে</div>
-  <div style="max-width:320px;margin:0 auto;">
-    <input type="email" class="fi" id="adminEmail" placeholder="Admin Email...">
-    <input type="password" class="fi" id="adminPass" placeholder="Password...">
-    <button class="btn-p" onclick="doAdminLogin()">🔐 Admin Login</button>
-  </div>
-</div>
-
-<!-- PANEL -->
-<div id="panel" style="display:none;">
-  <div class="wrap">
-
-    <!-- Header -->
-    <div class="hdr">
-      <div>
-        <div class="hdr-title">⚙️ FYP King Admin</div>
-        <div class="hdr-uid" id="adminUidTxt"></div>
-      </div>
-      <button class="btn-s" onclick="doLogout()">লগআউট</button>
-    </div>
-
-    <!-- Stats -->
-    <div class="stats-bar">
-      <div class="stat-box"><div class="stat-val" id="stTotal">—</div><div class="stat-lbl">মোট ইউজার</div></div>
-      <div class="stat-box"><div class="stat-val" id="stActive">—</div><div class="stat-lbl">Active (streak>0)</div></div>
-      <div class="stat-box"><div class="stat-val" id="stChals">—</div><div class="stat-lbl">চ্যালেঞ্জ</div></div>
-    </div>
-
-    <!-- All Users -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">👥 সব ইউজার <span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body">
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-          <button class="btn-s" onclick="loadUsers()" style="flex:1;">🔄 লোড</button>
-          <input class="fi2" id="srch" placeholder="নাম/email খোঁজো..." onkeyup="filterU()" style="flex:2;margin:0;">
+  <header class="site-header">
+    <div class="header-bg"></div>
+    <div class="header-content">
+      <div class="header-top">
+        <div class="logo">
+          <div class="logo-icon">📋</div>
+          <div>
+            <h1 class="site-title">নোটিশ বোর্ড</h1>
+            <p class="site-subtitle">সব আপডেট এক জায়গায়</p>
+          </div>
         </div>
-        <div id="userList"><div style="text-align:center;color:var(--muted);font-size:12px;padding:16px;">লোড বাটনে ক্লিক করো</div></div>
-      </div>
-    </div>
-
-    <!-- Earning Links -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">🔗 Earning লিঙ্ক সেটিং <span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body">
-        <div class="fg"><label class="fl">🎮 FTY Game URL</label><input class="fi2" id="eFtyGame" value="https://marketingjolrasi.netlify.app/"></div>
-        <div class="fg"><label class="fl">📋 Everyday Earning URL</label><input class="fi2" id="eEveryday" value="https://t.me/futfulcoinearnbot"></div>
-        <div class="fg"><label class="fl">🚀 Start Your Business URL</label><input class="fi2" id="eBusiness" value="https://new-start-business.vercel.app/"></div>
-        <button class="btn-p" onclick="saveEarningLinks()">💾 লিঙ্ক সেভ করো</button>
-      </div>
-    </div>
-
-    <!-- Unlock Tier -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">🔓 Tier আনলক <span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body">
-        <div class="fg"><label class="fl">ইউজার Email</label><input class="fi2" id="unlockEmail"></div>
-        <div class="fg"><label class="fl">Tier</label>
-          <select class="fi2" id="unlockTier">
-            <option value="paid1">💛 Tier 1 (দিন ২১-৪০)</option>
-            <option value="paid2">❤️ Tier 2 (দিন ৪১-৬০)</option>
-          </select>
-        </div>
-        <button class="btn-gold" onclick="doUnlock()">🔓 আনলক করো</button>
-      </div>
-    </div>
-
-    <!-- Challenge Editor -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">➕ চ্যালেঞ্জ যোগ/এডিট <span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body">
-        <input type="hidden" id="editIdx" value="-1">
-        <div class="grid2">
-          <div class="fg"><label class="fl">দিন নম্বর</label><input type="number" class="fi2" id="fDay" min="1" max="60"></div>
-          <div class="fg"><label class="fl">Emoji</label><input class="fi2" id="fEmoji"></div>
-        </div>
-        <div class="fg"><label class="fl">চ্যালেঞ্জ নাম</label><input class="fi2" id="fTitle"></div>
-        <div class="fg"><label class="fl">বিবরণ</label><textarea class="fi2" id="fDesc"></textarea></div>
-        <div class="fg"><label class="fl">Tier</label>
-          <select class="fi2" id="fTier">
-            <option value="free">🆓 ফ্রি (১-২০)</option>
-            <option value="paid1">💛 পেইড ১ (২১-৪০)</option>
-            <option value="paid2">❤️ পেইড ২ (৪১-৬০)</option>
-          </select>
-        </div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin:8px 0;text-transform:uppercase">📍 লোকেশন</div>
-        <div class="grid2">
-          <div class="fg"><label class="fl">পটভূমি</label><input class="fi2" id="fBg"></div>
-          <div class="fg"><label class="fl">ক্যামেরা</label><input class="fi2" id="fCam"></div>
-          <div class="fg"><label class="fl">লাইটিং</label><input class="fi2" id="fLight"></div>
-          <div class="fg"><label class="fl">শট ধরন</label><input class="fi2" id="fShot"></div>
-        </div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin:8px 0;text-transform:uppercase">👦 ছেলে পোশাক</div>
-        <div class="grid2">
-          <div class="fg"><label class="fl">উপরে</label><input class="fi2" id="fBTop"></div>
-          <div class="fg"><label class="fl">নিচে</label><input class="fi2" id="fBBot"></div>
-          <div class="fg"><label class="fl">জুতা</label><input class="fi2" id="fBShoe"></div>
-          <div class="fg"><label class="fl">Accessories</label><input class="fi2" id="fBAcc"></div>
-        </div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin:8px 0;text-transform:uppercase">👧 মেয়ে পোশাক</div>
-        <div class="grid2">
-          <div class="fg"><label class="fl">উপরে</label><input class="fi2" id="fGTop"></div>
-          <div class="fg"><label class="fl">নিচে</label><input class="fi2" id="fGBot"></div>
-          <div class="fg"><label class="fl">জুতা</label><input class="fi2" id="fGShoe"></div>
-          <div class="fg"><label class="fl">Makeup</label><input class="fi2" id="fGMakeup"></div>
-          <div class="fg"><label class="fl">Accessories</label><input class="fi2" id="fGAcc"></div>
-        </div>
-        <div style="font-size:10px;color:var(--muted);font-weight:700;margin:8px 0;text-transform:uppercase">🎵 মিউজিক</div>
-        <div class="grid2">
-          <div class="fg"><label class="fl">গান ১</label><input class="fi2" id="fM1n"></div>
-          <div class="fg"><label class="fl">শিল্পী</label><input class="fi2" id="fM1a"></div>
-          <div class="fg"><label class="fl">YouTube লিংক</label><input class="fi2" id="fM1yt"></div>
-          <div class="fg"><label class="fl">Drive লিংক</label><input class="fi2" id="fM1gd"></div>
-          <div class="fg"><label class="fl">গান ২</label><input class="fi2" id="fM2n"></div>
-          <div class="fg"><label class="fl">শিল্পী</label><input class="fi2" id="fM2a"></div>
-          <div class="fg"><label class="fl">YouTube লিংক</label><input class="fi2" id="fM2yt"></div>
-          <div class="fg"><label class="fl">Drive লিংক</label><input class="fi2" id="fM2gd"></div>
-        </div>
-        <div class="fg"><label class="fl">স্ক্রিপ্ট</label><textarea class="fi2" id="fScript"></textarea></div>
-        <div class="grid2">
-          <div class="fg"><label class="fl">পোস্টিং সময়</label><input class="fi2" id="fPTime"></div>
-          <div class="fg"><label class="fl">প্রত্যাশিত ভিউ</label><input class="fi2" id="fViews"></div>
-        </div>
-        <div class="fg"><label class="fl">হ্যাশট্যাগ (কমা দিয়ে)</label><input class="fi2" id="fHash"></div>
-        <div class="fg"><label class="fl">টিপস (প্রতি লাইনে একটি)</label><textarea class="fi2" id="fTips"></textarea></div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn-p" onclick="saveChallenge()" style="flex:2">💾 সেভ করো</button>
-          <button class="btn-s" onclick="clearForm()">🔄</button>
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          <span>লাইভ</span>
         </div>
       </div>
-    </div>
-
-    <!-- Challenge List -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">📋 চ্যালেঞ্জ তালিকা <span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body" id="chalList"><div style="text-align:center;color:var(--muted);font-size:12px;padding:16px;">—</div></div>
-    </div>
-
-
-
-    <!-- Support Messages -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">💬 সাপোর্ট বার্তা <span id="supportBadge" style="background:var(--p);color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:6px;display:none;">নতুন</span><span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body">
-        <button class="btn-s" onclick="loadSupportMsgs()" style="width:100%;margin-bottom:12px;">🔄 বার্তা লোড করো</button>
-        <div id="supportList"><div style="text-align:center;color:var(--muted);font-size:12px;padding:16px;">লোড বাটনে ক্লিক করো</div></div>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="filterCards('all', this)">সব</button>
+        <button class="filter-btn" onclick="filterCards('text', this)">📌 নোটিশ</button>
+        <button class="filter-btn" onclick="filterCards('file', this)">📎 ফাইল</button>
+        <button class="filter-btn" onclick="filterCards('link', this)">🔗 লিঙ্ক</button>
+        <button class="filter-btn" onclick="filterCards('urgent', this)">🚨 জরুরি</button>
+        <button class="filter-btn" onclick="filterCards('event', this)">📅 ইভেন্ট</button>
       </div>
     </div>
+  </header>
 
-    
-<!-- User Detail Modal -->
-<div id="userModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999;align-items:center;justify-content:center;">
-  <div style="background:var(--card);border-radius:16px;padding:20px;width:90%;max-width:400px;max-height:85vh;overflow-y:auto;">
-    <div style="text-align:center;margin-bottom:16px;">
-      <div id="umPic" style="margin-bottom:10px;"></div>
-      <div style="font-family:var(--fd);font-size:18px;font-weight:800;" id="umName">—</div>
-      <div style="font-size:12px;color:var(--muted);" id="umEmail">—</div>
-    </div>
-    <div id="umDetails"></div>
-    <button class="btn-s" onclick="$('userModal').style.display='none'" style="width:100%;margin-top:12px;">বন্ধ করো</button>
-  </div>
-</div>
-
-<!-- Reply Modal -->
-    <div id="replyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center;">
-      <div style="background:var(--card);border-radius:16px;padding:20px;width:90%;max-width:480px;max-height:80vh;overflow-y:auto;">
-        <div style="font-family:var(--fd);font-size:16px;font-weight:800;margin-bottom:4px;" id="replyUserName">—</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:14px;" id="replyUserEmail">—</div>
-        <div id="replyMsgList" style="margin-bottom:14px;max-height:300px;overflow-y:auto;"></div>
-        <textarea class="fi2" id="replyTxt" placeholder="Reply লেখো..." style="resize:none;height:80px;margin-bottom:10px;"></textarea>
-        <div style="display:flex;gap:8px;">
-          <button class="btn-p" onclick="sendReply()" style="flex:1;">📤 Reply পাঠাও</button>
-          <button class="btn-s" onclick="closeReply()">বন্ধ</button>
-        </div>
-      </div>
+  <main class="main-content">
+    <div id="loader" class="loader">
+      <div class="spinner"></div>
+      <p>লোড হচ্ছে...</p>
     </div>
 
-    <!-- Notice / Gift -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">📢 নোটিশ ও উপহার <span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">এখানে নোটিশ যোগ করলে সব ইউজার হোম পেজে দেখতে পাবে।</div>
-        <div class="fg"><label class="fl">আইকন (Emoji)</label><input class="fi2" id="nIcon" placeholder="📢" value="📢"></div>
-        <div class="fg"><label class="fl">শিরোনাম</label><input class="fi2" id="nTitle" placeholder="নোটিশের শিরোনাম..."></div>
-        <div class="fg"><label class="fl">বিবরণ / নির্দেশনা</label><textarea class="fi2" id="nBody" placeholder="ইউজারদের জন্য নির্দেশনা লেখো..."></textarea></div>
-        <div class="fg"><label class="fl">লিঙ্ক URL (ঐচ্ছিক)</label><input class="fi2" id="nLink" placeholder="https://..."></div>
-        <div class="fg"><label class="fl">লিঙ্ক বাটনের নাম</label><input class="fi2" id="nLinkText" placeholder="লিঙ্কে যাও"></div>
-        <div class="fg"><label class="fl">ফাইল/গিফট URL (ডাউনলোড লিঙ্ক)</label><input class="fi2" id="nFileUrl" placeholder="https://drive.google.com/..."></div>
-        <div class="fg"><label class="fl">ফাইলের নাম</label><input class="fi2" id="nFileName" placeholder="গিফট ডাউনলোড করো"></div>
-        <button class="btn-p" onclick="addNotice()" style="margin-bottom:10px;">➕ নোটিশ যোগ করো</button>
-        <div style="font-size:11px;color:var(--muted);font-weight:700;margin:12px 0 8px;text-transform:uppercase;">বর্তমান নোটিশ সমূহ</div>
-        <div id="noticeAdmList"><div style="text-align:center;color:var(--muted);font-size:12px;padding:12px;">লোড হচ্ছে...</div></div>
-      </div>
+    <div id="emptyState" class="empty-state" style="display:none;">
+      <div class="empty-icon">📭</div>
+      <h3>এখনো কোনো নোটিশ নেই</h3>
+      <p>অ্যাডমিন নোটিশ পোস্ট করলে এখানে দেখা যাবে</p>
     </div>
 
-    <!-- Payment Settings -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">💳 পেমেন্ট সেটিংস <span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body">
-        <div class="grid2">
-          <div class="fg"><label class="fl">bKash নম্বর</label><input class="fi2" id="fBkash"></div>
-          <div class="fg"><label class="fl">Nagad নম্বর</label><input class="fi2" id="fNagad"></div>
-          <div class="fg"><label class="fl">Tier 1 মূল্য</label><input type="number" class="fi2" id="fP1" placeholder="499"></div>
-          <div class="fg"><label class="fl">Tier 2 মূল্য</label><input type="number" class="fi2" id="fP2" placeholder="799"></div>
-        </div>
-        <div class="fg"><label class="fl">Admin Telegram</label><input class="fi2" id="fTG" placeholder="@admin"></div>
-        <button class="btn-p" onclick="savePaySettings()">💾 সেভ করো</button>
-      </div>
-    </div>
+    <div id="noticeBoard" class="notice-board"></div>
+  </main>
 
-    <!-- Password change -->
-    <div class="sec">
-      <div class="sec-hdr" onclick="togSec(this)">🔐 Admin Password <span style="margin-left:auto;color:var(--muted)">▼</span></div>
-      <div class="sec-body">
-        <div class="fg"><label class="fl">নতুন Password</label><input type="password" class="fi2" id="newPass"></div>
-        <button class="btn-s" onclick="changePass()" style="width:100%;">✅ পরিবর্তন করো</button>
-      </div>
-    </div>
+  <footer class="site-footer">
+    <p>© ২০২৪ নোটিশ বোর্ড · <a href="admin/">অ্যাডমিন প্যানেল</a></p>
+  </footer>
 
-    <div style="height:40px;"></div>
-  </div>
-</div>
-
-<script>
-/* ════════════════════════
-   Firebase REST API
-════════════════════════ */
-var APIKEY   = "AIzaSyDcBtQ9PtYZg8abUMaqk1EmOTOdPIT7ZxE";
-var PROJECT  = "fyp-king";
-var ADMIN_UID= "OKU1zI23e3MAm6fUyqyifyOyn5n1";
-var AUTHURL  = "https://identitytoolkit.googleapis.com/v1/accounts:";
-var FSURL    = "https://firestore.googleapis.com/v1/projects/"+PROJECT+"/databases/(default)/documents/";
-var ADM_PASS_KEY = 'fyp_adm_pass_v5';
-
-var _token = '', _uid = '', _email = '';
-var allUsers = [], challenges = [];
-
-/* ── Helpers ── */
-const $ = id => document.getElementById(id);
-function load(t){ $('loaderTxt').textContent=t||'লোড হচ্ছে...'; $('loader').classList.add('on'); }
-function unload(){ $('loader').classList.remove('on'); }
-function toast(msg, type){
-  var d=document.createElement('div'); d.className='tst '+(type||'ok'); d.textContent=msg;
-  $('toast').appendChild(d); setTimeout(()=>d.classList.add('show'),10);
-  setTimeout(()=>{ d.classList.remove('show'); setTimeout(()=>d.remove(),300); },2800);
-}
-function fmtN(n){ if(n>=1000000) return (n/1000000).toFixed(1)+'M'; if(n>=1000) return (n/1000).toFixed(1)+'K'; return n; }
-function togSec(h){ var b=h.nextElementSibling; b.classList.toggle('open'); h.querySelector('span:last-child').textContent=b.classList.contains('open')?'▲':'▼'; }
-
-/* ── Auth ── */
-async function authReq(action, body){
-  var r=await fetch(AUTHURL+action+"?key="+APIKEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  var d=await r.json(); if(d.error) throw {message:d.error.message}; return d;
-}
-function fsh(){ return {Authorization:'Bearer '+_token,'Content-Type':'application/json'}; }
-function toFS(obj){
-  var f={};
-  Object.keys(obj).forEach(function(k){
-    var v=obj[k];
-    if(v===null||v===undefined) f[k]={nullValue:null};
-    else if(typeof v==='boolean') f[k]={booleanValue:v};
-    else if(typeof v==='number') f[k]={doubleValue:v};
-    else if(Array.isArray(v)) f[k]={arrayValue:{values:v.map(function(x){return{stringValue:String(x)};})}};
-    else f[k]={stringValue:String(v)};
-  });
-  return {fields:f};
-}
-function frFS(doc){
-  if(!doc||!doc.fields) return null;
-  var o={}; Object.keys(doc.fields).forEach(function(k){
-    var f=doc.fields[k];
-    if('stringValue' in f) o[k]=f.stringValue;
-    else if('doubleValue' in f) o[k]=f.doubleValue;
-    else if('integerValue' in f) o[k]=parseInt(f.integerValue);
-    else if('booleanValue' in f) o[k]=f.booleanValue;
-    else if('arrayValue' in f) o[k]=(f.arrayValue.values||[]).map(function(x){return x.stringValue||x.doubleValue||'';});
-    else o[k]=null;
-  }); return o;
-}
-async function fsGet(col,id){ var r=await fetch(FSURL+col+'/'+id,{headers:fsh()}); var d=await r.json(); return d.fields?frFS(d):null; }
-async function fsSet(col,id,data){ await fetch(FSURL+col+'/'+id,{method:'PATCH',headers:fsh(),body:JSON.stringify(toFS(data))}); }
-async function fsUpdate(col,id,data){
-  var keys=Object.keys(data).join('&updateMask.fieldPaths=');
-  await fetch(FSURL+col+'/'+id+'?updateMask.fieldPaths='+keys,{method:'PATCH',headers:fsh(),body:JSON.stringify(toFS(data))});
-}
-async function getAllUsers(){
-  var r=await fetch(FSURL+'users',{headers:fsh()}); var d=await r.json();
-  return (d.documents||[]).map(function(doc){return frFS(doc);}).filter(Boolean);
-}
-async function getSetting(key){
-  var d = await fsGet('settings', key);
-  if(!d) return null;
-  // JSON string গুলো parse করো
-  Object.keys(d).forEach(function(k){
-    if(typeof d[k] === 'string' && (d[k].startsWith('[') || d[k].startsWith('{'))){
-      try{ d[k] = JSON.parse(d[k]); }catch(e){}
-    }
-  });
-  return d;
-}
-async function saveSetting(key,val){
-  // complex objects JSON stringify করে save করি
-  var saveData = {};
-  Object.keys(val).forEach(function(k){
-    var v = val[k];
-    if(Array.isArray(v) || (v && typeof v === 'object' && !Array.isArray(v) && k !== 'replied')){
-      saveData[k] = JSON.stringify(v);
-    } else {
-      saveData[k] = v;
-    }
-  });
-  await fsSet('settings', key, saveData);
-}
-async function getChallenges(){
-  var d=await getSetting('challenges'); return d?.list||[];
-}
-
-/* ── Login ── */
-async function doAdminLogin(){
-  var email=$('adminEmail').value.trim(), pass=$('adminPass').value;
-  if(!email||!pass){ toast('Email ও Password দাও','er'); return; }
-  load('লগইন হচ্ছে...');
-  try{
-    var d=await authReq('signInWithPassword',{email:email,password:pass,returnSecureToken:true});
-    if(d.localId !== ADMIN_UID){ unload(); toast('❌ তুমি Admin না!','er'); return; }
-    _token=d.idToken; _uid=d.localId; _email=d.email;
-    sessionStorage.setItem('adm_tk',_token);
-    sessionStorage.setItem('adm_uid',_uid);
-    sessionStorage.setItem('adm_em',_email);
-    sessionStorage.setItem('adm_exp', Date.now()+parseInt(d.expiresIn||3600)*1000);
-    unload(); showPanel();
-  } catch(e){ unload(); toast('❌ '+e.message,'er'); }
-}
-function doLogout(){
-  sessionStorage.clear(); _token=_uid=_email='';
-  $('panel').style.display='none'; $('loginScreen').style.display='block';
-}
-
-/* ── Panel ── */
-async function showPanel(){
-  $('loginScreen').style.display='none'; $('panel').style.display='block';
-  $('adminUidTxt').textContent='UID: '+_uid;
-  load('ডেটা লোড হচ্ছে...');
-  try{
-    challenges=await getChallenges();
-    renderChalList();
-    var pay=await getSetting('payment'); if(pay){ $('fBkash').value=pay.bkash||''; $('fNagad').value=pay.nagad||''; $('fP1').value=pay.price1||499; $('fP2').value=pay.price2||799; $('fTG').value=pay.adminTG||''; }
-    var eLinks=await getSetting('earningLinks');
-    if(eLinks){ $('eFtyGame').value=eLinks.ftyGame||$('eFtyGame').value; $('eEveryday').value=eLinks.everydayTask||$('eEveryday').value; $('eBusiness').value=eLinks.startBusiness||$('eBusiness').value; }
-    $('stChals').textContent=challenges.length;
-    unload();
-  } catch(e){ unload(); toast('⚠️ ডেটা লোড এ সমস্যা','er'); }
-}
-
-/* ── Users ── */
-async function loadUsers(){
-  $('userList').innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px;">লোড হচ্ছে...</div>';
-  try{
-    allUsers=await getAllUsers();
-    renderUsers(allUsers);
-    $('stTotal').textContent=allUsers.length;
-    $('stActive').textContent=allUsers.filter(u=>u.streak>0).length;
-  } catch(e){ $('userList').innerHTML='<div style="color:var(--p);font-size:12px;padding:10px;">Error: '+e.message+'</div>'; }
-}
-function filterU(){
-  var q=$('srch').value.toLowerCase();
-  renderUsers(allUsers.filter(u=>(u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)));
-}
-function renderUsers(users){
-  $('userList').innerHTML=users.length?users.map(u=>`
-    <div class="uc">
-      <div class="uc-top">
-        <div class="uc-av" style="width:52px;height:52px;flex-shrink:0;">
-          ${u.pic
-            ? `<img src="${u.pic}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--p);">`
-            : `<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--p2));display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;">${u.name?u.name[0].toUpperCase():'👤'}</div>`
-          }
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div class="uc-name">${u.name||'—'} ${u.username?`<span style="color:var(--p);font-size:10px">@${u.username}</span>`:''}</div>
-          <div class="uc-det">${u.email||'—'}</div>
-          <div class="uc-det" style="margin-top:2px;">${u.bio||''}</div>
-        </div>
-        <button class="ebtn" onclick="viewUser('${u.uid}')" style="margin-right:4px;">👁️</button>
-        <button class="dbtn" onclick="delUser('${u.uid}','${u.email||''}')">🗑️</button>
-      </div>
-      <div class="uc-chips">
-        <div class="uch">👥 ${fmtN(u.followers||0)}</div>
-        <div class="uch">🔥 ${u.streak||0}</div>
-        <div class="uch">✅ ${u.completed||0}</div>
-        <div class="uch">${u.gender==='female'?'👩':'👦'} ${u.gender||'—'}</div>
-        <div class="uch">${(u.unlockedTiers||['free']).includes('paid2')?'❤️ P2':(u.unlockedTiers||[]).includes('paid1')?'💛 P1':'🆓 ফ্রি'}</div>
-      </div>
-      ${u.pic ? `<div style="margin-top:8px;font-size:10px;color:var(--green);">📸 প্রোফাইল ছবি আছে</div>` : `<div style="margin-top:4px;font-size:10px;color:var(--muted);">📷 ছবি নেই</div>`}
-    </div>`).join('')
-  :'<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px;">কোনো ইউজার নেই</div>';
-}
-async function delUser(uid,email){
-  if(!confirm(email+' এর ডেটা মুছবে?')) return;
-  load('মুছা হচ্ছে...');
-  await fetch(FSURL+'users/'+uid,{method:'DELETE',headers:fsh()});
-  unload(); toast('🗑️ মুছে গেছে!','ok'); loadUsers();
-}
-
-/* ── Earning Links ── */
-async function saveEarningLinks(){
-  load('সেভ হচ্ছে...');
-  await saveSetting('earningLinks',{ftyGame:$('eFtyGame').value,everydayTask:$('eEveryday').value,startBusiness:$('eBusiness').value});
-  unload(); toast('✅ লিঙ্ক সেভ হয়েছে!','ok');
-}
-
-/* ── Unlock ── */
-async function doUnlock(){
-  var email=$('unlockEmail').value.trim(), tier=$('unlockTier').value;
-  if(!email){ toast('❌ Email দাও!','er'); return; }
-  load('খোঁজা হচ্ছে...');
-  try{
-    var users=await getAllUsers();
-    var user=users.find(u=>u.email===email);
-    if(!user){ unload(); toast('❌ ইউজার পাওয়া যায়নি!','er'); return; }
-    var tiers=[...new Set([...(user.unlockedTiers||['free']),'free',tier,...(tier==='paid2'?['paid1']:[])])];
-    await fsUpdate('users',user.uid,{unlockedTiers:tiers});
-    unload(); $('unlockEmail').value='';
-    toast('✅ '+(user.name||email)+' আনলক হয়েছে!','ok');
-  } catch(e){ unload(); toast('❌ '+e.message,'er'); }
-}
-
-/* ── Challenges ── */
-function renderChalList(){
-  $('chalList').innerHTML=challenges.length?challenges.map((c,i)=>`
-    <div class="cli">
-      <div class="cli-info">
-        <div class="cli-day">দিন ${c.day} ${c.emoji||''} <span class="tier-b ${c.tier==='free'?'tf':c.tier==='paid1'?'tp1':'tp2'}">${c.tier}</span></div>
-        <div class="cli-t">${c.title}</div>
-      </div>
-      <div class="cli-acts">
-        <button class="ebtn" onclick="editChal(${i})">✏️</button>
-        <button class="dbtn" onclick="delChal(${i})">🗑️</button>
-      </div>
-    </div>`).join('')
-  :'<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px;">কোনো চ্যালেঞ্জ নেই</div>';
-}
-async function saveChallenge(){
-  var idx=parseInt($('editIdx').value);
-  var ch={id:parseInt($('fDay').value),day:parseInt($('fDay').value),title:$('fTitle').value,emoji:$('fEmoji').value||'🎬',description:$('fDesc').value,tier:$('fTier').value,
-    location:{background:$('fBg').value,camera:$('fCam').value,lighting:$('fLight').value,shotType:$('fShot').value},
-    outfitBoy:{top:$('fBTop').value,bottom:$('fBBot').value,shoes:$('fBShoe').value,accessories:$('fBAcc').value},
-    outfitGirl:{top:$('fGTop').value,bottom:$('fGBot').value,shoes:$('fGShoe').value,makeup:$('fGMakeup').value,accessories:$('fGAcc').value},
-    music:[{name:$('fM1n').value,artist:$('fM1a').value,yt:$('fM1yt').value,gd:$('fM1gd').value},{name:$('fM2n').value,artist:$('fM2a').value,yt:$('fM2yt').value,gd:$('fM2gd').value}].filter(m=>m.name),
-    script:$('fScript').value,postingTime:$('fPTime').value,expectedViews:$('fViews').value,
-    hashtags:$('fHash').value.split(',').map(h=>h.trim()).filter(Boolean),
-    tips:$('fTips').value.split('\n').filter(t=>t.trim())
-  };
-  if(!ch.day||!ch.title){ toast('❌ দিন নম্বর ও নাম দাও!','er'); return; }
-  if(idx>=0) challenges[idx]=ch;
-  else{ var ei=challenges.findIndex(x=>x.day===ch.day); if(ei>=0) challenges[ei]=ch; else{ challenges.push(ch); challenges.sort((a,b)=>a.day-b.day); } }
-  load('সেভ হচ্ছে...');
-  await saveSetting('challenges',{list:challenges});
-  unload(); clearForm(); renderChalList(); $('stChals').textContent=challenges.length;
-  toast('✅ সেভ হয়েছে!','ok');
-}
-function editChal(i){
-  var c=challenges[i]; if(!c) return;
-  $('editIdx').value=i;
-  $('fDay').value=c.day; $('fTitle').value=c.title; $('fEmoji').value=c.emoji||''; $('fDesc').value=c.description||''; $('fTier').value=c.tier;
-  $('fBg').value=c.location?.background||''; $('fCam').value=c.location?.camera||''; $('fLight').value=c.location?.lighting||''; $('fShot').value=c.location?.shotType||'';
-  $('fBTop').value=c.outfitBoy?.top||''; $('fBBot').value=c.outfitBoy?.bottom||''; $('fBShoe').value=c.outfitBoy?.shoes||''; $('fBAcc').value=c.outfitBoy?.accessories||'';
-  $('fGTop').value=c.outfitGirl?.top||''; $('fGBot').value=c.outfitGirl?.bottom||''; $('fGShoe').value=c.outfitGirl?.shoes||''; $('fGMakeup').value=c.outfitGirl?.makeup||''; $('fGAcc').value=c.outfitGirl?.accessories||'';
-  var m=c.music||[];
-  $('fM1n').value=m[0]?.name||''; $('fM1a').value=m[0]?.artist||''; $('fM1yt').value=m[0]?.yt||''; $('fM1gd').value=m[0]?.gd||'';
-  $('fM2n').value=m[1]?.name||''; $('fM2a').value=m[1]?.artist||''; $('fM2yt').value=m[1]?.yt||''; $('fM2gd').value=m[1]?.gd||'';
-  $('fScript').value=c.script||''; $('fPTime').value=c.postingTime||''; $('fViews').value=c.expectedViews||'';
-  $('fHash').value=(c.hashtags||[]).join(', '); $('fTips').value=(c.tips||[]).join('\n');
-  toast('✏️ এডিট মোড','ok');
-  // scroll to editor
-  document.querySelector('#panel .sec:nth-child(5) .sec-hdr').click();
-}
-async function delChal(i){
-  if(!confirm('মুছবে?')) return;
-  challenges.splice(i,1); load('মুছা হচ্ছে...');
-  await saveSetting('challenges',{list:challenges});
-  unload(); renderChalList(); toast('🗑️ মুছে গেছে!','ok');
-}
-function clearForm(){
-  $('editIdx').value='-1';
-  ['fDay','fTitle','fEmoji','fDesc','fBg','fCam','fLight','fShot','fBTop','fBBot','fBShoe','fBAcc','fGTop','fGBot','fGShoe','fGMakeup','fGAcc','fM1n','fM1a','fM1yt','fM1gd','fM2n','fM2a','fM2yt','fM2gd','fScript','fPTime','fViews','fHash','fTips'].forEach(function(id){var el=$(id);if(el)el.value='';});
-  $('fTier').value='free';
-}
-
-/* ── Payment Settings ── */
-async function savePaySettings(){
-  var s={bkash:$('fBkash').value,nagad:$('fNagad').value,price1:parseInt($('fP1').value)||499,price2:parseInt($('fP2').value)||799,adminTG:$('fTG').value};
-  load('সেভ হচ্ছে...'); await saveSetting('payment',s);
-  unload(); toast('✅ সেভ হয়েছে!','ok');
-}
-
-
-
-
-
-function viewUser(uid){
-  var u = allUsers.find(x=>x.uid===uid); if(!u) return;
-  $('umPic').innerHTML = u.pic
-    ? `<img src="${u.pic}" style="width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid var(--p);margin:0 auto;display:block;">`
-    : `<div style="width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,var(--p),var(--p2));display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:800;margin:0 auto;">${u.name?u.name[0].toUpperCase():'👤'}</div>`;
-  $('umName').textContent = (u.name||'—') + (u.username?' @'+u.username:'');
-  $('umEmail').textContent = u.email||'—';
-  $('umDetails').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;">
-        <div style="font-size:18px;font-weight:800;color:var(--p);">${fmtN(u.followers||0)}</div>
-        <div style="font-size:10px;color:var(--muted);">Followers</div>
-      </div>
-      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;">
-        <div style="font-size:18px;font-weight:800;color:var(--p2);">${u.streak||0}</div>
-        <div style="font-size:10px;color:var(--muted);">🔥 Streak</div>
-      </div>
-      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;">
-        <div style="font-size:18px;font-weight:800;color:var(--green);">${u.completed||0}</div>
-        <div style="font-size:10px;color:var(--muted);">✅ সম্পূর্ণ</div>
-      </div>
-      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;">
-        <div style="font-size:16px;font-weight:800;">${(u.unlockedTiers||['free']).includes('paid2')?'❤️ P2':(u.unlockedTiers||[]).includes('paid1')?'💛 P1':'🆓 ফ্রি'}</div>
-        <div style="font-size:10px;color:var(--muted);">Tier</div>
-      </div>
-    </div>
-    ${u.bio?`<div style="background:var(--bg3);border-radius:8px;padding:10px;font-size:13px;margin-bottom:8px;">"${u.bio}"</div>`:''}
-    <div style="font-size:11px;color:var(--muted);">লিঙ্গ: ${u.gender||'—'} • যোগদান: ${u.createdAt?u.createdAt.substring(0,10):'—'}</div>
-  `;
-  $('userModal').style.display='flex';
-}
-
-/* ── Support ── */
-var currentSupportUid = '';
-async function loadSupportMsgs(){
-  $('supportList').innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px;">লোড হচ্ছে...</div>';
-  try{
-    // সরাসরি settings collection query করো — support_ দিয়ে শুরু
-    var r = await fetch(FS+"settings?pageSize=100", {headers:fsh()});
-    var d = await r.json();
-    var docs = (d.documents||[]);
-    var supportItems = [];
-    for(var doc of docs){
-      var name = doc.name||'';
-      if(name.includes('support_')){
-        var data = fF(doc);
-        if(data && data.lastMsg){
-          supportItems.push({
-            uid: data.uid||'', 
-            name: data.name||'—', 
-            email: data.email||'—', 
-            lastMsg: data.lastMsg, 
-            lastTime: data.lastTime, 
-            replied: data.replied, 
-            msgs: []
-          });
+  <script>
+    function filterCards(type, btn) {
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.querySelectorAll(".notice-card").forEach(card => {
+        if (type === "all" || card.classList.contains(`type-${type}`)) {
+          card.style.display = "";
+        } else {
+          card.style.display = "none";
         }
-      }
+      });
     }
-    if(!supportItems.length){
-      $('supportList').innerHTML='<div style="text-align:center;color:var(--muted);font-size:12px;padding:16px;">কোনো বার্তা নেই</div>';
-      return;
-    }
-    supportItems.sort((a,b)=> (a.replied?1:0)-(b.replied?1:0));
-    var newCount = supportItems.filter(x=>!x.replied).length;
-    if(newCount>0){ $('supportBadge').textContent=newCount+' নতুন'; $('supportBadge').style.display='inline'; }
-    $('supportList').innerHTML = supportItems.map(s=>`
-      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid ${s.replied?'var(--border)':'var(--p)'};">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-          <div style="font-weight:700;font-size:13px;flex:1;">${s.name||'—'}</div>
-          <span style="font-size:10px;background:${s.replied?'var(--bg2)':'rgba(255,45,85,.2)'};color:${s.replied?'var(--muted)':'var(--p)'};padding:2px 7px;border-radius:8px;">${s.replied?'✓ replied':'🔴 নতুন'}</span>
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">${s.email}</div>
-        <div style="font-size:12px;color:var(--text);margin-bottom:8px;">"${(s.lastMsg||'').substring(0,80)}${(s.lastMsg||'').length>80?'...':''}"</div>
-        <button class="btn-s" onclick="openReply('${s.uid}','${s.name||'—'}','${s.email}')" style="width:100%;font-size:12px;">💬 বার্তা দেখো ও Reply করো</button>
-      </div>`).join('');
-  } catch(e){ $('supportList').innerHTML='<div style="color:var(--p);font-size:12px;padding:10px;">Error: '+e.message+'</div>'; }
-}
-
-async function openReply(uid, name, email){
-  currentSupportUid = uid;
-  $('replyUserName').textContent = name;
-  $('replyUserEmail').textContent = email;
-  $('replyModal').style.display = 'flex';
-  var d = await getSetting('support_'+uid);
-  var msgs = (d && Array.isArray(d.msgs)) ? d.msgs : [];
-  $('replyMsgList').innerHTML = msgs.map(m=>`
-    <div style="margin-bottom:8px;display:flex;flex-direction:column;align-items:${m.from==='user'?'flex-start':'flex-end'};">
-      <div style="max-width:85%;background:${m.from==='user'?'var(--bg2)':'var(--p)'};color:${m.from==='user'?'var(--text)':'#fff'};border-radius:10px;padding:8px 12px;font-size:12px;">${m.text}</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:2px;">${m.from==='user'?name:'👑 Admin'} • ${m.time||''}</div>
-    </div>`).join('');
-  $('replyMsgList').scrollTop=$('replyMsgList').scrollHeight;
-}
-function closeReply(){ $('replyModal').style.display='none'; $('replyTxt').value=''; currentSupportUid=''; }
-
-async function sendReply(){
-  var txt=$('replyTxt').value.trim();
-  if(!txt||!currentSupportUid){ toast('Reply লেখো!','er'); return; }
-  load('পাঠানো হচ্ছে...');
-  try{
-    var d = await getSetting('support_'+currentSupportUid) || {};
-    var msgs = Array.isArray(d.msgs) ? d.msgs : [];
-    msgs.push({from:'admin', text:txt, time:new Date().toLocaleString('bn-BD')});
-    await saveSetting('support_'+currentSupportUid, {
-      msgs: msgs,
-      uid: d.uid||currentSupportUid,
-      email: d.email||'',
-      name: d.name||'',
-      lastMsg: d.lastMsg||'',
-      lastTime: d.lastTime||'',
-      replied: true
-    });
-    unload();
-    $('replyTxt').value='';
-    toast('✅ Reply পাঠানো হয়েছে!','ok');
-    openReply(currentSupportUid, $('replyUserName').textContent, $('replyUserEmail').textContent);
-    loadSupportMsgs();
-  } catch(e){ unload(); toast('❌ '+e.message,'er'); }
-}
-
-/* ── Notices ── */
-var noticesData = [];
-async function loadNotices(){
-  try{
-    var d = await getSetting('notices');
-    noticesData = d?.list || [];
-    renderNoticeAdmList();
-  } catch(e){}
-}
-function renderNoticeAdmList(){
-  $('noticeAdmList').innerHTML = noticesData.length ? noticesData.map((n,i)=>`
-    <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;align-items:flex-start;gap:8px;">
-      <div style="flex:1;">
-        <div style="font-weight:700;font-size:13px;">${n.icon||'📢'} ${n.title||'—'}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${n.body?.substring(0,60)||''}${n.link?'  🔗':''}${n.fileUrl?'  ⬇️':''}</div>
-      </div>
-      <button class="dbtn" onclick="delNotice(${i})">🗑️</button>
-    </div>`).join('')
-  : '<div style="text-align:center;color:var(--muted);font-size:12px;padding:12px;">কোনো নোটিশ নেই</div>';
-}
-async function addNotice(){
-  var title = $('nTitle').value.trim();
-  if(!title){ toast('❌ শিরোনাম দাও!','er'); return; }
-  var notice = {
-    icon:     $('nIcon').value || '📢',
-    title:    title,
-    body:     $('nBody').value,
-    link:     $('nLink').value,
-    linkText: $('nLinkText').value || 'লিঙ্কে যাও',
-    fileUrl:  $('nFileUrl').value,
-    fileName: $('nFileName').value || 'ডাউনলোড করো',
-    date:     new Date().toLocaleDateString('bn-BD')
-  };
-  noticesData.unshift(notice); // নতুনটা সবার উপরে
-  load('সেভ হচ্ছে...');
-  await saveSetting('notices', {list: noticesData});
-  unload();
-  // form clear
-  ['nTitle','nBody','nLink','nLinkText','nFileUrl','nFileName'].forEach(id=>$(id).value='');
-  $('nIcon').value='📢';
-  renderNoticeAdmList();
-  toast('✅ নোটিশ যোগ হয়েছে!','ok');
-}
-async function delNotice(i){
-  if(!confirm('এই নোটিশ মুছবে?')) return;
-  noticesData.splice(i,1);
-  load('মুছা হচ্ছে...');
-  await saveSetting('notices', {list: noticesData});
-  unload(); renderNoticeAdmList();
-  toast('🗑️ মুছে গেছে!','ok');
-}
-
-/* ── Password ── */
-function changePass(){
-  var p=$('newPass').value;
-  if(!p||p.length<4){ toast('❌ কমপক্ষে ৪ অক্ষর!','er'); return; }
-  localStorage.setItem(ADM_PASS_KEY,p); $('newPass').value='';
-  toast('✅ Password পরিবর্তন হয়েছে!','ok');
-}
-
-/* ── Auto session ── */
-window.addEventListener('DOMContentLoaded',function(){
-  var tk=sessionStorage.getItem('adm_tk');
-  var uid=sessionStorage.getItem('adm_uid');
-  var exp=parseInt(sessionStorage.getItem('adm_exp')||'0');
-  if(tk && uid===ADMIN_UID && Date.now()<exp){
-    _token=tk; _uid=uid; _email=sessionStorage.getItem('adm_em')||'';
-    showPanel();
-  }
-});
-</script>
+  </script>
 </body>
 </html>
