@@ -302,16 +302,15 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{getFirestore,collection,addDoc,deleteDoc,updateDoc,doc,onSnapshot,query,orderBy,serverTimestamp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import{getAuth,signInWithEmailAndPassword,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-// ✅ আপনার Firebase config এখানে বসান
-const firebaseConfig = {
-  apiKey: "AIzaSyAnEXrxmLAmsKh6ktCXW7FOo_-zOdY8TdE",
-  authDomain: "fyp-king-notice.firebaseapp.com",
-  databaseURL: "https://fyp-king-notice-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "fyp-king-notice",
-  storageBucket: "fyp-king-notice.firebasestorage.app",
-  messagingSenderId: "964120344364",
-  appId: "1:964120344364:web:2189eb49ade683b60f1e89",
-  measurementId: "G-7GYGQSDJV7"
+const cfg={
+  apiKey:"AIzaSyAnEXrxmLAmsKh6ktCXW7FOo_-zOdY8TdE",
+  authDomain:"fyp-king-notice.firebaseapp.com",
+  databaseURL:"https://fyp-king-notice-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"fyp-king-notice",
+  storageBucket:"fyp-king-notice.firebasestorage.app",
+  messagingSenderId:"964120344364",
+  appId:"1:964120344364:web:2189eb49ade683b60f1e89",
+  measurementId:"G-7GYGQSDJV7"
 };
 
 const app=initializeApp(cfg);
@@ -332,12 +331,28 @@ onAuthStateChanged(auth,user=>{
 });
 
 window.login=async()=>{
-  const e=document.getElementById("lemail").value;
+  const e=document.getElementById("lemail").value.trim();
   const p=document.getElementById("lpass").value;
   const errEl=document.getElementById("lerr");
+  const btn=document.querySelector(".login-wrap .btn");
   errEl.textContent="";
-  try{await signInWithEmailAndPassword(auth,e,p);}
-  catch{errEl.textContent="ভুল ইমেইল বা পাসওয়ার্ড।";}
+  if(!e||!p){errEl.textContent="ইমেইল ও পাসওয়ার্ড দিন।";return;}
+  btn.textContent="লগইন হচ্ছে...";btn.disabled=true;
+  try{
+    await signInWithEmailAndPassword(auth,e,p);
+  }catch(err){
+    const codes={
+      "auth/user-not-found":"এই ইমেইল দিয়ে কোনো অ্যাকাউন্ট নেই।",
+      "auth/wrong-password":"পাসওয়ার্ড ভুল।",
+      "auth/invalid-email":"ইমেইল ফরম্যাট সঠিক নয়।",
+      "auth/invalid-credential":"ইমেইল বা পাসওয়ার্ড ভুল।",
+      "auth/too-many-requests":"অনেকবার চেষ্টা করেছেন। কিছুক্ষণ পর আবার চেষ্টা করুন।",
+      "auth/network-request-failed":"ইন্টারনেট সংযোগ সমস্যা।",
+    };
+    errEl.textContent=codes[err.code]||("ত্রুটি: "+err.code);
+    console.error(err);
+  }
+  btn.textContent="লগইন করুন →";btn.disabled=false;
 };
 
 window.logout=async()=>{await signOut(auth);};
