@@ -1,165 +1,412 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>নোটিশ বোর্ড</title>
-  <link rel="stylesheet" href="assets/css/style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&family=Tiro+Bangla&display=swap" rel="stylesheet" />
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FYP King Notice Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0c12;
+    --card: #111420;
+    --card2: #161b28;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f2ff;
+    --text2: #8b92b3;
+    --text3: #4a5070;
+    --blue: #4f8ef7;
+    --purple: #8b5cf6;
+    --green: #22d3a5;
+    --red: #f7604f;
+    --orange: #f7a94f;
+    --yellow: #f7d44f;
+    --font: 'Hind Siliguri', sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 
-    // ✅ এখানে আপনার Firebase config বসান
-    const firebaseConfig = {
-      apiKey: "AIzaSyAnEXrxmLAmsKh6ktCXW7FOo_-zOdY8TdE",
-      authDomain: "fyp-king-notice.firebaseapp.com",
-      projectId: "fyp-king-notice",
-      storageBucket: "fyp-king-notice.firebasestorage.app",
-      messagingSenderId: "964120344364",
-      appId: "1:964120344364:web:2189eb49ade683b60f1e89"
-    };
+  /* ── Animated background ── */
+  body::before{
+    content:'';position:fixed;inset:0;z-index:0;
+    background:
+      radial-gradient(ellipse 80% 50% at 10% 20%,rgba(79,142,247,0.07) 0%,transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 80%,rgba(139,92,246,0.06) 0%,transparent 60%);
+    pointer-events:none;
+  }
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+  /* ── Header ── */
+  .header{
+    position:relative;z-index:1;
+    background:rgba(17,20,32,0.85);
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    border-bottom:1px solid var(--border);
+    position:sticky;top:0;
+  }
+  .header-inner{
+    max-width:1100px;margin:0 auto;
+    padding:16px 20px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    flex-wrap:wrap;
+  }
+  .logo-area{display:flex;align-items:center;gap:12px}
+  .logo-emoji{
+    width:44px;height:44px;
+    background:linear-gradient(135deg,var(--blue),var(--purple));
+    border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:1.3rem;
+    box-shadow:0 4px 16px rgba(79,142,247,0.3);
+    flex-shrink:0;
+  }
+  .logo-text h1{font-size:1.2rem;font-weight:700;color:var(--text);line-height:1.1}
+  .logo-text p{font-size:0.72rem;color:var(--text3);margin-top:2px}
+  .live-pill{
+    display:flex;align-items:center;gap:7px;
+    background:rgba(34,211,165,0.1);border:1px solid rgba(34,211,165,0.2);
+    color:var(--green);padding:6px 14px;border-radius:20px;
+    font-size:0.78rem;font-weight:600;letter-spacing:0.05em;white-space:nowrap;
+  }
+  .live-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:blink 1.5s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 
-    const board = document.getElementById("noticeBoard");
-    const loader = document.getElementById("loader");
-    const emptyState = document.getElementById("emptyState");
+  /* ── Search ── */
+  .search-bar{
+    max-width:1100px;margin:0 auto;padding:20px 20px 0;position:relative;z-index:1;
+  }
+  .search-input{
+    width:100%;background:var(--card);border:1px solid var(--border);
+    color:var(--text);padding:13px 46px 13px 18px;
+    border-radius:12px;font-family:var(--font);font-size:0.95rem;outline:none;
+    transition:border-color .2s;
+  }
+  .search-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(79,142,247,0.1)}
+  .search-input::placeholder{color:var(--text3)}
+  .search-icon{position:absolute;right:34px;top:50%;transform:translateY(-50%);font-size:1rem;pointer-events:none}
 
-    const q = query(collection(db, "notices"), orderBy("createdAt", "desc"));
+  /* ── Filter chips ── */
+  .filters{
+    max-width:1100px;margin:0 auto;
+    padding:16px 20px;
+    display:flex;gap:8px;overflow-x:auto;
+    scrollbar-width:none;position:relative;z-index:1;
+  }
+  .filters::-webkit-scrollbar{display:none}
+  .chip{
+    background:var(--card);border:1px solid var(--border);
+    color:var(--text2);padding:7px 16px;border-radius:20px;
+    cursor:pointer;font-family:var(--font);font-size:0.82rem;
+    white-space:nowrap;transition:all .2s;user-select:none;
+  }
+  .chip:hover{border-color:var(--border2);color:var(--text)}
+  .chip.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
 
-    onSnapshot(q, (snapshot) => {
-      loader.style.display = "none";
-      board.innerHTML = "";
+  /* ── Main ── */
+  .main{max-width:1100px;margin:0 auto;padding:8px 20px 40px;position:relative;z-index:1}
 
-      if (snapshot.empty) {
-        emptyState.style.display = "flex";
-        return;
-      }
+  /* ── Notice Grid ── */
+  .board{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(300px,1fr));
+    gap:16px;
+  }
 
-      emptyState.style.display = "none";
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        board.appendChild(createCard(data));
-      });
-    });
+  /* ── Card ── */
+  .ncard{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:16px;padding:20px;
+    transition:transform .2s,box-shadow .2s,border-color .2s;
+    animation:fadeUp .35s ease both;
+    position:relative;overflow:hidden;cursor:default;
+  }
+  .ncard::after{
+    content:'';position:absolute;top:0;left:0;right:0;height:2px;
+    background:var(--blue);border-radius:16px 16px 0 0;
+    transition:opacity .2s;
+  }
+  .ncard.t-file::after{background:var(--orange)}
+  .ncard.t-link::after{background:var(--purple)}
+  .ncard.t-urgent::after{background:var(--red)}
+  .ncard.t-event::after{background:var(--green)}
+  .ncard:hover{transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.5);border-color:var(--border2)}
 
-    function createCard(data) {
-      const card = document.createElement("div");
-      card.className = `notice-card type-${data.type}`;
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 
-      const date = data.createdAt?.toDate?.() ?? new Date();
-      const dateStr = date.toLocaleDateString("bn-BD", { day: "numeric", month: "long", year: "numeric" });
-      const timeStr = date.toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" });
+  .card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px}
+  .card-tags{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .badge{
+    font-size:0.68rem;font-weight:700;padding:3px 9px;
+    border-radius:8px;letter-spacing:.04em;
+  }
+  .badge.t-text{background:rgba(79,142,247,0.15);color:var(--blue)}
+  .badge.t-file{background:rgba(247,169,79,0.15);color:var(--orange)}
+  .badge.t-link{background:rgba(139,92,246,0.15);color:var(--purple)}
+  .badge.t-urgent{background:rgba(247,96,79,0.15);color:var(--red)}
+  .badge.t-event{background:rgba(34,211,165,0.15);color:var(--green)}
+  .pin-mark{font-size:0.75rem;color:var(--yellow)}
+  .card-title{font-size:1rem;font-weight:600;color:var(--text);line-height:1.5;margin-bottom:8px}
+  .card-body{font-size:0.87rem;color:var(--text2);line-height:1.75;margin-bottom:12px;white-space:pre-wrap;word-break:break-word}
+  .link-box{
+    background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.18);
+    border-radius:10px;padding:9px 13px;font-size:0.78rem;color:var(--purple);
+    word-break:break-all;margin-bottom:12px;
+  }
+  .file-box{
+    display:flex;align-items:center;gap:8px;
+    background:rgba(247,169,79,0.08);border:1px solid rgba(247,169,79,0.18);
+    border-radius:10px;padding:9px 13px;font-size:0.82rem;color:var(--orange);
+    margin-bottom:12px;word-break:break-all;
+  }
+  .card-foot{
+    display:flex;align-items:center;justify-content:space-between;
+    border-top:1px solid var(--border);padding-top:12px;gap:10px;flex-wrap:wrap;
+  }
+  .card-date{font-size:0.73rem;color:var(--text3)}
+  .card-btn{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--blue);color:#fff;padding:7px 16px;
+    border-radius:9px;font-size:0.8rem;font-weight:600;
+    text-decoration:none;transition:background .2s,transform .15s;
+    white-space:nowrap;
+  }
+  .card-btn:hover{background:#3a7ef5;transform:translateY(-1px);text-decoration:none;color:#fff}
+  .card-btn.purple{background:var(--purple)}
+  .card-btn.purple:hover{background:#7c3aed}
 
-      let icon = "📌";
-      if (data.type === "file") icon = "📎";
-      if (data.type === "link") icon = "🔗";
-      if (data.type === "urgent") icon = "🚨";
-      if (data.type === "event") icon = "📅";
+  /* ── Pinned section ── */
+  .pinned-section{margin-bottom:20px}
+  .section-label{
+    font-size:0.75rem;font-weight:700;color:var(--yellow);
+    letter-spacing:.08em;text-transform:uppercase;
+    margin-bottom:12px;display:flex;align-items:center;gap:8px;
+  }
+  .section-label::after{content:'';flex:1;height:1px;background:rgba(247,211,79,0.15)}
 
-      let actionHTML = "";
-      if (data.type === "file" && data.fileUrl) {
-        actionHTML = `<a href="${data.fileUrl}" target="_blank" class="card-action" download>
-          <span>ডাউনলোড করুন</span> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        </a>`;
-      } else if (data.type === "link" && data.linkUrl) {
-        actionHTML = `<a href="${data.linkUrl}" target="_blank" class="card-action">
-          <span>লিঙ্ক খুলুন</span> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        </a>`;
-      }
+  /* ── Loader & Empty ── */
+  .loader{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:16px;padding:80px 20px;color:var(--text3);
+  }
+  .spin{
+    width:40px;height:40px;border:3px solid var(--border);
+    border-top-color:var(--blue);border-radius:50%;
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .empty{
+    text-align:center;padding:80px 20px;color:var(--text3);
+  }
+  .empty-ico{font-size:3.5rem;margin-bottom:16px;opacity:.5}
+  .empty h3{font-size:1.1rem;color:var(--text2);margin-bottom:8px}
+  .empty p{font-size:0.87rem}
 
-      card.innerHTML = `
-        <div class="card-header">
-          <span class="card-icon">${icon}</span>
-          <span class="card-badge type-${data.type}">${getTypeName(data.type)}</span>
-          ${data.pinned ? '<span class="card-pinned">📌 পিন করা</span>' : ""}
-        </div>
-        <h3 class="card-title">${escapeHtml(data.title)}</h3>
-        ${data.body ? `<p class="card-body">${escapeHtml(data.body).replace(/\n/g, "<br>")}</p>` : ""}
-        ${data.type === "link" && data.linkUrl ? `<div class="card-link-preview">${escapeHtml(data.linkUrl)}</div>` : ""}
-        ${data.type === "file" && data.fileName ? `<div class="card-file-info"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> ${escapeHtml(data.fileName)}</div>` : ""}
-        <div class="card-footer">
-          <span class="card-date">${dateStr} · ${timeStr}</span>
-          ${actionHTML}
-        </div>
-      `;
+  /* ── Stats bar ── */
+  .stats{
+    display:flex;gap:16px;flex-wrap:wrap;
+    max-width:1100px;margin:0 auto;padding:0 20px 16px;
+    position:relative;z-index:1;
+  }
+  .stat-pill{
+    background:var(--card);border:1px solid var(--border);
+    padding:8px 16px;border-radius:10px;font-size:0.8rem;color:var(--text2);
+    display:flex;align-items:center;gap:7px;
+  }
+  .stat-pill strong{color:var(--text);font-size:1rem}
 
-      return card;
-    }
-
-    function getTypeName(type) {
-      const names = { text: "নোটিশ", file: "ফাইল", link: "লিঙ্ক", urgent: "জরুরি", event: "ইভেন্ট" };
-      return names[type] || "নোটিশ";
-    }
-
-    function escapeHtml(str = "") {
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-  </script>
+  /* ── Responsive ── */
+  @media(max-width:640px){
+    .board{grid-template-columns:1fr}
+    .header-inner{padding:12px 16px}
+    .logo-text h1{font-size:1.05rem}
+    .search-bar,.filters,.main,.stats{padding-left:14px;padding-right:14px}
+    .ncard{padding:16px}
+  }
+</style>
 </head>
 <body>
-  <header class="site-header">
-    <div class="header-bg"></div>
-    <div class="header-content">
-      <div class="header-top">
-        <div class="logo">
-          <div class="logo-icon">📋</div>
-          <div>
-            <h1 class="site-title">নোটিশ বোর্ড</h1>
-            <p class="site-subtitle">সব আপডেট এক জায়গায়</p>
-          </div>
-        </div>
-        <div class="live-badge">
-          <span class="live-dot"></span>
-          <span>লাইভ</span>
-        </div>
-      </div>
-      <div class="filter-bar">
-        <button class="filter-btn active" onclick="filterCards('all', this)">সব</button>
-        <button class="filter-btn" onclick="filterCards('text', this)">📌 নোটিশ</button>
-        <button class="filter-btn" onclick="filterCards('file', this)">📎 ফাইল</button>
-        <button class="filter-btn" onclick="filterCards('link', this)">🔗 লিঙ্ক</button>
-        <button class="filter-btn" onclick="filterCards('urgent', this)">🚨 জরুরি</button>
-        <button class="filter-btn" onclick="filterCards('event', this)">📅 ইভেন্ট</button>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="logo-area">
+      <div class="logo-emoji">📋</div>
+      <div class="logo-text">
+        <h1>FYP King Notice</h1>
+        <p>সব আপডেট এক জায়গায়</p>
       </div>
     </div>
-  </header>
+    <div class="live-pill"><span class="live-dot"></span> লাইভ</div>
+  </div>
+</header>
 
-  <main class="main-content">
-    <div id="loader" class="loader">
-      <div class="spinner"></div>
-      <p>লোড হচ্ছে...</p>
+<div class="search-bar">
+  <div style="position:relative">
+    <input class="search-input" id="searchBox" placeholder="নোটিশ খুঁজুন..." oninput="doSearch()"/>
+    <span class="search-icon">🔍</span>
+  </div>
+</div>
+
+<div class="filters" id="filterBar">
+  <div class="chip on" onclick="setFilter('all',this)">সব</div>
+  <div class="chip" onclick="setFilter('text',this)">📌 নোটিশ</div>
+  <div class="chip" onclick="setFilter('file',this)">📎 ফাইল</div>
+  <div class="chip" onclick="setFilter('link',this)">🔗 লিঙ্ক</div>
+  <div class="chip" onclick="setFilter('urgent',this)">🚨 জরুরি</div>
+  <div class="chip" onclick="setFilter('event',this)">📅 ইভেন্ট</div>
+</div>
+
+<div class="stats" id="statsBar" style="display:none">
+  <div class="stat-pill">মোট: <strong id="totalCount">0</strong></div>
+  <div class="stat-pill" id="pinnedStat" style="display:none">📌 পিন: <strong id="pinnedCount">0</strong></div>
+</div>
+
+<main class="main">
+  <div class="loader" id="loader"><div class="spin"></div><p>লোড হচ্ছে...</p></div>
+  <div class="empty" id="emptyMsg" style="display:none">
+    <div class="empty-ico">📭</div>
+    <h3>কোনো নোটিশ নেই</h3>
+    <p>অ্যাডমিন নোটিশ পোস্ট করলে এখানে দেখাবে</p>
+  </div>
+  <div id="board"></div>
+</main>
+
+<!-- Firebase SDK -->
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getFirestore,collection,onSnapshot,query,orderBy}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ✅ আপনার Firebase config এখানে বসান
+const cfg={
+  apiKey:"YOUR_API_KEY",
+  authDomain:"YOUR_PROJECT.firebaseapp.com",
+  projectId:"YOUR_PROJECT_ID",
+  storageBucket:"YOUR_PROJECT.appspot.com",
+  messagingSenderId:"YOUR_SENDER_ID",
+  appId:"YOUR_APP_ID"
+};
+
+const app=initializeApp(cfg);
+const db=getFirestore(app);
+let allNotices=[];
+
+const q=query(collection(db,"notices"),orderBy("createdAt","desc"));
+onSnapshot(q,snap=>{
+  document.getElementById("loader").style.display="none";
+  allNotices=[];
+  snap.forEach(d=>allNotices.push({id:d.id,...d.data()}));
+  renderAll();
+});
+
+window._noticesReady=true;
+window._allNotices=()=>allNotices;
+
+function renderAll(){
+  const notices=allNotices;
+  const board=document.getElementById("board");
+  const empty=document.getElementById("emptyMsg");
+  const statsBar=document.getElementById("statsBar");
+
+  if(notices.length===0){empty.style.display="block";board.innerHTML="";statsBar.style.display="none";return;}
+  empty.style.display="none";statsBar.style.display="flex";
+
+  document.getElementById("totalCount").textContent=notices.length;
+  const pinned=notices.filter(n=>n.pinned);
+  const pinnedStat=document.getElementById("pinnedStat");
+  if(pinned.length>0){pinnedStat.style.display="flex";document.getElementById("pinnedCount").textContent=pinned.length;}
+  else{pinnedStat.style.display="none";}
+
+  board.innerHTML="";
+  const pinnedItems=notices.filter(n=>n.pinned);
+  const rest=notices.filter(n=>!n.pinned);
+
+  if(pinnedItems.length>0){
+    const sec=document.createElement("div");
+    sec.className="pinned-section";
+    sec.innerHTML=`<div class="section-label">📌 পিন করা নোটিশ</div>`;
+    const grid=document.createElement("div");grid.className="board";
+    pinnedItems.forEach(n=>grid.appendChild(makeCard(n)));
+    sec.appendChild(grid);board.appendChild(sec);
+  }
+  if(rest.length>0){
+    const grid=document.createElement("div");grid.className="board";
+    rest.forEach(n=>grid.appendChild(makeCard(n)));
+    board.appendChild(grid);
+  }
+
+  window._render=renderAll;
+}
+window._render=renderAll;
+
+function makeCard(d){
+  const card=document.createElement("div");
+  card.className=`ncard t-${d.type}`;
+  card.dataset.type=d.type;
+  card.dataset.title=(d.title||"").toLowerCase();
+  card.dataset.body=(d.body||"").toLowerCase();
+
+  const date=d.createdAt?.toDate?.()??new Date();
+  const dateStr=date.toLocaleDateString("bn-BD",{day:"numeric",month:"long",year:"numeric"});
+  const timeStr=date.toLocaleTimeString("bn-BD",{hour:"2-digit",minute:"2-digit"});
+
+  const typeNames={text:"নোটিশ",file:"ফাইল",link:"লিঙ্ক",urgent:"জরুরি",event:"ইভেন্ট"};
+  const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  let extra="";
+  if(d.type==="link"&&d.linkUrl){
+    extra=`<div class="link-box">🔗 ${esc(d.linkUrl)}</div>`;
+  }
+  if(d.type==="file"&&d.fileName){
+    extra=`<div class="file-box">📎 <span>${esc(d.fileName)}</span></div>`;
+  }
+
+  let action="";
+  if(d.type==="file"&&d.fileData){
+    action=`<a class="card-btn" href="${d.fileData}" download="${esc(d.fileName||'file')}">⬇ ডাউনলোড</a>`;
+  }else if(d.type==="link"&&d.linkUrl){
+    action=`<a class="card-btn purple" href="${esc(d.linkUrl)}" target="_blank" rel="noopener">↗ খুলুন</a>`;
+  }
+
+  card.innerHTML=`
+    <div class="card-top">
+      <div class="card-tags">
+        <span class="badge t-${d.type}">${typeNames[d.type]||"নোটিশ"}</span>
+        ${d.pinned?'<span class="pin-mark">📌 পিন</span>':""}
+      </div>
     </div>
-
-    <div id="emptyState" class="empty-state" style="display:none;">
-      <div class="empty-icon">📭</div>
-      <h3>এখনো কোনো নোটিশ নেই</h3>
-      <p>অ্যাডমিন নোটিশ পোস্ট করলে এখানে দেখা যাবে</p>
+    <div class="card-title">${esc(d.title)}</div>
+    ${d.body?`<div class="card-body">${esc(d.body)}</div>`:""}
+    ${extra}
+    <div class="card-foot">
+      <span class="card-date">${dateStr} · ${timeStr}</span>
+      ${action}
     </div>
+  `;
+  return card;
+}
+</script>
 
-    <div id="noticeBoard" class="notice-board"></div>
-  </main>
+<script>
+let currentFilter="all";
 
-  <footer class="site-footer">
-    <p>© ২০২৪ নোটিশ বোর্ড · <a href="admin/">অ্যাডমিন প্যানেল</a></p>
-  </footer>
+function setFilter(type,el){
+  currentFilter=type;
+  document.querySelectorAll(".chip").forEach(c=>c.classList.remove("on"));
+  el.classList.add("on");
+  applyFilterSearch();
+}
 
-  <script>
-    function filterCards(type, btn) {
-      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      document.querySelectorAll(".notice-card").forEach(card => {
-        if (type === "all" || card.classList.contains(`type-${type}`)) {
-          card.style.display = "";
-        } else {
-          card.style.display = "none";
-        }
-      });
-    }
-  </script>
+function doSearch(){applyFilterSearch()}
+
+function applyFilterSearch(){
+  const q=document.getElementById("searchBox").value.toLowerCase();
+  document.querySelectorAll(".ncard").forEach(card=>{
+    const typeMatch=currentFilter==="all"||card.dataset.type===currentFilter;
+    const textMatch=!q||(card.dataset.title+card.dataset.body).includes(q);
+    card.style.display=(typeMatch&&textMatch)?"":"none";
+  });
+}
+</script>
 </body>
 </html>
